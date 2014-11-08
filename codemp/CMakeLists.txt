@@ -167,6 +167,25 @@ if(BuildMPEngine OR BuildMPDed)
 		set(MPEngineAndDedLibraries ${MPEngineAndDedLibraries} ${ZLIB_LIBRARY})
 	endif()
 
+	# FastCGI Library
+	set(MPEngineAndDedLibfcgiFiles
+		"${OpenJKLibDir}/libfcgi/fastcgi.h"
+		"${OpenJKLibDir}/libfcgi/fcgi_config.h"
+		"${OpenJKLibDir}/libfcgi/fcgi_config_x86.h"
+		"${OpenJKLibDir}/libfcgi/fcgi_stdio.h"
+		"${OpenJKLibDir}/libfcgi/fcgiapp.h"
+		"${OpenJKLibDir}/libfcgi/fcgimisc.h"
+		"${OpenJKLibDir}/libfcgi/fcgio.h"
+		"${OpenJKLibDir}/libfcgi/fcgios.h")
+	source_group("libfcgi" FILES ${MPEngineAndDedLibfcgiFiles})
+	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedLibfcgiFiles})
+	#set(MPEngineAndDedIncludeDirectories ${MPEngineAndDedIncludeDirectories} "${OpenJKLibDir}/libfcgi")
+	find_library(LibfcgiLibrary NAMES libfcgi PATHS "${OpenJKLibDir}/libfcgi")
+	if(NOT LibfcgiLibrary)
+		message(FATAL_ERROR "lib/libfcgi/libfcgi.lib not found!")
+	endif(NOT LibfcgiLibrary)
+	set(MPEngineAndDedLibraries ${MPEngineAndDedLibraries} ${LibfcgiLibrary})
+
 	set(MPEngineAndDedCgameFiles
 		"${MPDir}/cgame/cg_public.h"
 		)
@@ -314,6 +333,13 @@ if(BuildMPEngine OR BuildMPDed)
 		)
 	source_group("minizip" FILES ${MPEngineAndDedMinizipFiles})
 	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedMinizipFiles})
+
+	set(MPEngineAndDedWebapiFiles
+		"${MPDir}/webapi/webapi.cpp"
+		"${MPDir}/webapi/webapi.h"
+		)
+	source_group("webapi" FILES ${MPEngineAndDedWebapiFiles})
+	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedWebapiFiles})
 
 	if(WIN32)
 		set(MPEngineAndDedWin32Files
