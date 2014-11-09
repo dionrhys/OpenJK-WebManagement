@@ -4,7 +4,6 @@
 #include "qcommon/MiniHeap.h"
 #include "qcommon/stringed_ingame.h"
 #include "sv_gameapi.h"
-#include "webapi/webapi.h"
 
 /*
 ===============
@@ -986,8 +985,6 @@ void SV_Init (void) {
 #ifdef DEDICATED
 	SV_InitRef();
 #endif
-
-	WEBAPI_Init();
 }
 
 
@@ -1033,8 +1030,6 @@ before Sys_Quit or Sys_Error
 */
 void SV_Shutdown( char *finalmsg )
 {
-	WEBAPI_Shutdown();
-
 	if ( !com_sv_running || !com_sv_running->integer )
 	{
 		return;

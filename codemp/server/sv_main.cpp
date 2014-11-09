@@ -2,7 +2,6 @@
 
 #include "ghoul2/ghoul2_shared.h"
 #include "sv_gameapi.h"
-#include "webapi/webapi.h"
 
 serverStatic_t	svs;				// persistant server info
 server_t		sv;					// local server
@@ -1012,8 +1011,6 @@ void SV_Frame( int msec ) {
 		Cvar_Set( "sv_killserver", "0" );
 		return;
 	}
-
-	WEBAPI_Frame();
 
 	if ( !com_sv_running->integer ) {
 		return;

@@ -4,6 +4,7 @@
 #include "qcommon/cm_public.h"
 #include "qcommon/game_version.h"
 #include "../server/NPCNav/navigator.h"
+#include "webapi/webapi.h"
 
 #define	MAXPRINTMSG	4096
 
@@ -863,6 +864,9 @@ int Com_EventLoop( void ) {
 				}
 			}
 
+			// check for a Web API request to handle
+			WebAPI_Frame();
+
 			return ev.evTime;
 		}
 
@@ -1269,6 +1273,8 @@ void Com_Init( char *commandLine ) {
 		VM_Init();
 		SV_Init();
 
+		WebAPI_Init();
+
 		com_dedicated->modified = qfalse;
 		if ( !com_dedicated->integer ) {
 			CL_Init();
@@ -1633,6 +1639,8 @@ Com_Shutdown
 void MSG_shutdownHuffman();
 void Com_Shutdown (void)
 {
+	WebAPI_Shutdown();
+
 	CM_ClearMap();
 
 	if (logfile) {

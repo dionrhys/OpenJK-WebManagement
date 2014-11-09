@@ -9,13 +9,25 @@
 HANDLE acceptedRequestEvent;
 HANDLE finishedRequestEvent;
 
+// Handle to the thread used for accepting FastCGI requests
 HANDLE acceptingThreadHandle;
 
-static DWORD WINAPI _WEBAPI_AcceptingThreadProc(LPVOID);
-static void WEBAPI_AcceptingThread();
+// Specifies whether the web API is initialized or not
+bool webapiInitialized = false;
 
-void WEBAPI_Init()
+static DWORD WINAPI _WebAPI_AcceptingThreadProc(LPVOID);
+static void WebAPI_AcceptingThread();
+
+///
+/// Initialize and start the FastCGI server to accept API requests.
+///
+void WebAPI_Init()
 {
+	if (!com_dedicated->integer || webapiInitialized)
+	{
+		return;
+	}
+
 	Com_Printf("Starting Web API: *:9000\n");
 
 	if (FCGX_Init() != 0)
@@ -33,18 +45,46 @@ void WEBAPI_Init()
 
 	acceptedRequestEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	finishedRequestEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
-	acceptingThreadHandle = CreateThread(NULL, 0, _WEBAPI_AcceptingThreadProc, NULL, 0, NULL);
+	acceptingThreadHandle = CreateThread(NULL, 0, _WebAPI_AcceptingThreadProc, NULL, 0, NULL);
+
+	webapiInitialized = true;
 }
 
-void WEBAPI_Shutdown()
+///
+/// Shutdown the FastCGI server.
+///
+void WebAPI_Shutdown()
 {
+	if (!webapiInitialized)
+	{
+		return;
+	}
+
 	Com_Printf("Stopping Web API\n");
-	FCGX_ShutdownPending();
-	WaitForSingleObject(acceptingThreadHandle, INFINITE);
+
+	FCGX_ShutdownPending(); // Signal FastCGI to shutdown (FCGX_Accept checks for shutdown every 1 second)
+
+	SetEvent(finishedRequestEvent); // Set this event just in case the accepting thread is in the middle of a request (otherwise we'd have deadlock)
+	WaitForSingleObject(acceptingThreadHandle, INFINITE); // The thread will end when FCGX_Accept returns an error code due to the shutdown request
+
+	// The accepting thread has finished so it's safe to close all these handles now
+	CloseHandle(acceptingThreadHandle);
+	CloseHandle(finishedRequestEvent);
+	CloseHandle(acceptedRequestEvent);
+
+	webapiInitialized = false;
 }
 
-void WEBAPI_Frame()
+///
+/// Poll the accepting thread to see if there's a new request to handle.
+///
+void WebAPI_Frame()
 {
+	if (!webapiInitialized)
+	{
+		return;
+	}
+
 	int result = WaitForSingleObject(acceptedRequestEvent, 0);
 	if (result == WAIT_OBJECT_0)
 	{
@@ -53,13 +93,19 @@ void WEBAPI_Frame()
 	}
 }
 
-static DWORD WINAPI _WEBAPI_AcceptingThreadProc(LPVOID)
+///
+/// WIN32 wrapper for the WebAPI_AcceptingThread function.
+///
+static DWORD WINAPI _WebAPI_AcceptingThreadProc(LPVOID)
 {
-	WEBAPI_AcceptingThread();
+	WebAPI_AcceptingThread();
 	return 1;
 }
 
-static void WEBAPI_AcceptingThread()
+///
+/// Continuously accept FastCGI requests until the library is shutdown.
+///
+static void WebAPI_AcceptingThread()
 {
 	FCGX_Stream *in, *out, *err;
 	FCGX_ParamArray envp;
@@ -67,8 +113,13 @@ static void WEBAPI_AcceptingThread()
 
 	while ((result = FCGX_Accept(&in, &out, &err, &envp)) >= 0)
 	{
+		// TODO: Pre-process the request and put it in shared memory
+
 		SetEvent(acceptedRequestEvent);
 		WaitForSingleObject(finishedRequestEvent, INFINITE);
+
+		// TODO: Un-process the request?
+
 		FCGX_FPrintF(out, "Content-Type: text/plain\r\n\r\nIt works!");
 	}
 }
