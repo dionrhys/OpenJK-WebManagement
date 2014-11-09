@@ -6,14 +6,17 @@
 // The accepting thread will signal acceptedRequestEvent when it has a request that it needs the main thread to handle
 // The main thread will signal finishedRequestEvent after it has finished handling the request
 // (both events are auto-reset events)
-HANDLE acceptedRequestEvent;
-HANDLE finishedRequestEvent;
+static HANDLE acceptedRequestEvent;
+static HANDLE finishedRequestEvent;
 
 // Handle to the thread used for accepting FastCGI requests
-HANDLE acceptingThreadHandle;
+static HANDLE acceptingThreadHandle;
 
 // Specifies whether the web API is initialized or not
-bool webapiInitialized = false;
+static bool webapiInitialized = false;
+
+// The shared FastCGI request object (access must be synchronized)
+static FCGX_Request webapiRequest;
 
 static DWORD WINAPI _WebAPI_AcceptingThreadProc(LPVOID);
 static void WebAPI_AcceptingThread();
@@ -42,6 +45,8 @@ void WebAPI_Init()
 		Com_Printf("- Unable to open the socket\n");
 		return;
 	}
+
+	FCGX_InitRequest(&webapiRequest, 0, 0);
 
 	acceptedRequestEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	finishedRequestEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -85,10 +90,36 @@ void WebAPI_Frame()
 		return;
 	}
 
-	int result = WaitForSingleObject(acceptedRequestEvent, 0);
+	// Ensure the accepting thread is still running
+	int result = WaitForSingleObject(acceptingThreadHandle, 0);
 	if (result == WAIT_OBJECT_0)
 	{
-		Com_Printf("Oooh, piece of candy!\n");
+		Com_Printf("Web API error: accepting thread exited unexpectedly\n");
+		WebAPI_Shutdown();
+		return;
+	}
+
+	// Check if the accepting thread has accepted a request (no timeout, returns immediately)
+	result = WaitForSingleObject(acceptedRequestEvent, 0);
+	if (result == WAIT_OBJECT_0)
+	{
+		Com_Printf("Web API request %s:%s : %s %s %s\n",
+			FCGX_GetParam("REMOTE_ADDR", webapiRequest.envp),
+			FCGX_GetParam("REMOTE_PORT", webapiRequest.envp),
+			FCGX_GetParam("REQUEST_METHOD", webapiRequest.envp),
+			FCGX_GetParam("PATH_INFO", webapiRequest.envp),
+			FCGX_GetParam("QUERY_STRING", webapiRequest.envp));
+		//FCGX_FPrintF(webapiRequest.out, "Content-Type: text/plain\r\n\r\nIt works!\ncom_version: %s\ncom_frameTime: %d", com_version->string, com_frameTime);
+		FCGX_FPrintF(webapiRequest.out, "Content-Type: application/json\r\n\r\n{\n  \"conclusion\": \"It works!\",\n  \"version\": \"%s\",\n  \"frameTime\": %d\n}", com_version->string, com_frameTime);
+
+		// TODO: Ensure required parameters are given
+		// TODO: Ensure globally valid REQUEST_METHOD (GET, HEAD, POST, PUT, DELETE)
+		// TODO: Authentication/Authorization
+		// TODO: Parse out PATH_INFO segments (probably into std::vector<string>)
+		// TODO: Parse out QUERY_STRING values (probably into std::map<string, string>)
+		// TODO: Locate appropriate resource controller to handle the request
+
+		// Let the accepting thread resume
 		SetEvent(finishedRequestEvent);
 	}
 }
@@ -107,19 +138,14 @@ static DWORD WINAPI _WebAPI_AcceptingThreadProc(LPVOID)
 ///
 static void WebAPI_AcceptingThread()
 {
-	FCGX_Stream *in, *out, *err;
-	FCGX_ParamArray envp;
 	int result;
 
-	while ((result = FCGX_Accept(&in, &out, &err, &envp)) >= 0)
+	while ((result = FCGX_Accept_r(&webapiRequest)) == 0)
 	{
-		// TODO: Pre-process the request and put it in shared memory
-
+		// Raise the signal for main thread to handle the request, then wait until it has finished with it
 		SetEvent(acceptedRequestEvent);
 		WaitForSingleObject(finishedRequestEvent, INFINITE);
-
-		// TODO: Un-process the request?
-
-		FCGX_FPrintF(out, "Content-Type: text/plain\r\n\r\nIt works!");
 	}
+
+	FCGX_Finish_r(&webapiRequest);
 }
