@@ -335,6 +335,8 @@ if(BuildMPEngine OR BuildMPDed)
 	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedMinizipFiles})
 
 	set(MPEngineAndDedWebapiFiles
+		"${MPDir}/webapi/utils.cpp"
+		"${MPDir}/webapi/utils.h"
 		"${MPDir}/webapi/webapi.cpp"
 		"${MPDir}/webapi/webapi.h"
 		)

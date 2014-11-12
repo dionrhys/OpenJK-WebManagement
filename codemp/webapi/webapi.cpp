@@ -1,4 +1,5 @@
 #include "webapi.h"
+#include "utils.h"
 
 #include "qcommon/qcommon.h"
 #include "libfcgi/fcgiapp.h"
@@ -20,6 +21,7 @@ static FCGX_Request webapiRequest;
 
 static DWORD WINAPI _WebAPI_AcceptingThreadProc(LPVOID);
 static void WebAPI_AcceptingThread();
+static void WebAPI_HandleRequest(FCGX_Request& request);
 
 ///
 /// Initialize and start the FastCGI server to accept API requests.
@@ -103,21 +105,7 @@ void WebAPI_Frame()
 	result = WaitForSingleObject(acceptedRequestEvent, 0);
 	if (result == WAIT_OBJECT_0)
 	{
-		Com_Printf("Web API request %s:%s : %s %s %s\n",
-			FCGX_GetParam("REMOTE_ADDR", webapiRequest.envp),
-			FCGX_GetParam("REMOTE_PORT", webapiRequest.envp),
-			FCGX_GetParam("REQUEST_METHOD", webapiRequest.envp),
-			FCGX_GetParam("PATH_INFO", webapiRequest.envp),
-			FCGX_GetParam("QUERY_STRING", webapiRequest.envp));
-		//FCGX_FPrintF(webapiRequest.out, "Content-Type: text/plain\r\n\r\nIt works!\ncom_version: %s\ncom_frameTime: %d", com_version->string, com_frameTime);
-		FCGX_FPrintF(webapiRequest.out, "Content-Type: application/json\r\n\r\n{\n  \"conclusion\": \"It works!\",\n  \"version\": \"%s\",\n  \"frameTime\": %d\n}", com_version->string, com_frameTime);
-
-		// TODO: Ensure required parameters are given
-		// TODO: Ensure globally valid REQUEST_METHOD (GET, HEAD, POST, PUT, DELETE)
-		// TODO: Authentication/Authorization
-		// TODO: Parse out PATH_INFO segments (probably into std::vector<string>)
-		// TODO: Parse out QUERY_STRING values (probably into std::map<string, string>)
-		// TODO: Locate appropriate resource controller to handle the request
+		WebAPI_HandleRequest(webapiRequest);
 
 		// Let the accepting thread resume
 		SetEvent(finishedRequestEvent);
@@ -148,4 +136,89 @@ static void WebAPI_AcceptingThread()
 	}
 
 	FCGX_Finish_r(&webapiRequest);
+}
+
+static void WebAPI_HandleRequest(FCGX_Request& request)
+{
+	// Ensure required parameters are given
+	const char *requestMethod = FCGX_GetParam("REQUEST_METHOD", request.envp);
+	if (requestMethod == NULL)
+	{
+		FCGX_FPrintF(request.err, "Missing REQUEST_METHOD parameter");
+		return;
+	}
+
+	const char *pathInfo = FCGX_GetParam("PATH_INFO", request.envp);
+	if (pathInfo == NULL)
+	{
+		FCGX_FPrintF(request.err, "Missing PATH_INFO parameter");
+		return;
+	}
+
+	const char *queryString = FCGX_GetParam("QUERY_STRING", request.envp);
+	if (queryString == NULL)
+	{
+		FCGX_FPrintF(request.err, "Missing QUERY_STRING parameter");
+		return;
+	}
+
+	const char *remoteAddr = FCGX_GetParam("REMOTE_ADDR", request.envp);
+	if (remoteAddr == NULL)
+	{
+		FCGX_FPrintF(request.err, "Missing REMOTE_ADDR parameter");
+		return;
+	}
+
+	const char *remotePort = FCGX_GetParam("REMOTE_PORT", request.envp);
+	if (remotePort == NULL)
+	{
+		FCGX_FPrintF(request.err, "Missing REMOTE_PORT parameter");
+		return;
+	}
+
+	// Ensure globally valid REQUEST_METHOD (GET, HEAD, POST, PUT, DELETE)
+	if (strcmp(requestMethod, "GET") &&
+		strcmp(requestMethod, "HEAD") &&
+		strcmp(requestMethod, "POST") &&
+		strcmp(requestMethod, "PUT") &&
+		strcmp(requestMethod, "DELETE"))
+	{
+		FCGX_FPrintF(request.out, "Status: 501 Not Implemented\r\n\r\n");
+		return;
+	}
+
+	Com_Printf("Web API request %s:%s : %s %s %s\n", remoteAddr, remotePort, requestMethod, pathInfo, queryString);
+
+	// TODO: Parse/validate PATH_INFO segments (probably into std::vector<string>)
+	std::vector<std::string> path;
+	try
+	{
+		ParsePathInfo(pathInfo, path);
+	}
+	catch (std::exception& ex)
+	{
+		FCGX_FPrintF(request.err, "ParsePathInfo: %s", ex.what());
+		FCGX_FPrintF(request.out, "Status: 400 Bad Request\r\n\r\n");
+		return;
+	}
+
+	// TODO: Parse/validate QUERY_STRING values (probably into std::map<string, string>)
+	std::map<std::string, std::string> query;
+	try
+	{
+		ParseQueryString(queryString, query);
+	}
+	catch (std::exception& ex)
+	{
+		FCGX_FPrintF(request.err, "ParseQueryString: %s", ex.what());
+		FCGX_FPrintF(request.out, "Status: 400 Bad Request\r\n\r\n");
+		return;
+	}
+
+	// TODO: Authentication/Authorization
+
+	// TODO: Locate appropriate resource controller to handle the request
+
+	//FCGX_FPrintF(request.out, "Content-Type: text/plain\r\n\r\nIt works!\ncom_version: %s\ncom_frameTime: %d", com_version->string, com_frameTime);
+	FCGX_FPrintF(request.out, "Content-Type: application/json\r\n\r\n{\n  \"conclusion\": \"It works!\",\n  \"version\": \"%s\",\n  \"frameTime\": %d\n}", com_version->string, com_frameTime);
 }
