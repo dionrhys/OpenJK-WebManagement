@@ -179,11 +179,12 @@ static void WebAPI_HandleRequest(FCGX_Request& request)
 	}
 
 	// Ensure globally valid REQUEST_METHOD (GET, HEAD, POST, PUT, DELETE)
-	if (strcmp(requestMethod, "GET") &&
-		strcmp(requestMethod, "HEAD") &&
-		strcmp(requestMethod, "POST") &&
-		strcmp(requestMethod, "PUT") &&
-		strcmp(requestMethod, "DELETE"))
+	std::string method = std::string(requestMethod);
+	if (method != "GET" &&
+		method != "HEAD" &&
+		method != "POST" &&
+		method != "PUT" &&
+		method != "DELETE")
 	{
 		FCGX_FPrintF(request.out, "Status: 501 Not Implemented\r\n\r\n");
 		return;
@@ -220,7 +221,7 @@ static void WebAPI_HandleRequest(FCGX_Request& request)
 	// TODO: Authentication/Authorization
 
 	// TODO: Locate appropriate resource controller to handle the request
-	WebAPIRequest newRequest = WebAPIRequest(request, path, query);
+	WebAPIRequest newRequest = WebAPIRequest(request, method, path, query);
 	if (path.size() >= 1 && path[0] == "players")
 	{
 		PlayersController controller = PlayersController(newRequest);
