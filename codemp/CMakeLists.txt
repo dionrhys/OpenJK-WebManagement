@@ -167,6 +167,15 @@ if(BuildMPEngine OR BuildMPDed)
 		set(MPEngineAndDedLibraries ${MPEngineAndDedLibraries} ${ZLIB_LIBRARY})
 	endif()
 
+	# json-cpp Library
+	set(MPEngineAndDedJsonCppFiles
+		"${OpenJKLibDir}/json/json.h"
+		"${OpenJKLibDir}/json/jsoncpp.cpp"
+		"${OpenJKLibDir}/json/json-forwards.h")
+	source_group("jsoncpp" FILES ${MPEngineAndDedJsonCppFiles})
+	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedJsonCppFiles})
+	set(MPEngineAndDedIncludeDirectories ${MPEngineAndDedIncludeDirectories} "${OpenJKLibDir}/json")
+
 	# FastCGI Library
 	set(MPEngineAndDedLibfcgiFiles
 		"${OpenJKLibDir}/libfcgi/fastcgi.h"
@@ -335,10 +344,12 @@ if(BuildMPEngine OR BuildMPDed)
 	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedMinizipFiles})
 
 	set(MPEngineAndDedWebapiFiles
+		"${MPDir}/webapi/PlayersController.h"
 		"${MPDir}/webapi/utils.cpp"
 		"${MPDir}/webapi/utils.h"
 		"${MPDir}/webapi/webapi.cpp"
 		"${MPDir}/webapi/webapi.h"
+		"${MPDir}/webapi/WebAPIRequest.h"
 		)
 	source_group("webapi" FILES ${MPEngineAndDedWebapiFiles})
 	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedWebapiFiles})

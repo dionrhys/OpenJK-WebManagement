@@ -1,5 +1,7 @@
 #include "webapi.h"
 #include "utils.h"
+#include "WebAPIRequest.h"
+#include "PlayersController.h"
 
 #include "qcommon/qcommon.h"
 #include "libfcgi/fcgiapp.h"
@@ -189,7 +191,7 @@ static void WebAPI_HandleRequest(FCGX_Request& request)
 
 	Com_Printf("Web API request %s:%s : %s %s %s\n", remoteAddr, remotePort, requestMethod, pathInfo, queryString);
 
-	// TODO: Parse/validate PATH_INFO segments (probably into std::vector<string>)
+	// Parse/validate path segments from PATH_INFO
 	std::vector<std::string> path;
 	try
 	{
@@ -202,7 +204,7 @@ static void WebAPI_HandleRequest(FCGX_Request& request)
 		return;
 	}
 
-	// TODO: Parse/validate QUERY_STRING values (probably into std::map<string, string>)
+	// Parse/validate key/value parameters from QUERY_STRING
 	std::map<std::string, std::string> query;
 	try
 	{
@@ -218,6 +220,13 @@ static void WebAPI_HandleRequest(FCGX_Request& request)
 	// TODO: Authentication/Authorization
 
 	// TODO: Locate appropriate resource controller to handle the request
+	WebAPIRequest newRequest = WebAPIRequest(request, path, query);
+	if (path.size() >= 1 && path[0] == "players")
+	{
+		PlayersController controller = PlayersController(newRequest);
+		controller.Execute();
+		return;
+	}
 
 	//FCGX_FPrintF(request.out, "Content-Type: text/plain\r\n\r\nIt works!\ncom_version: %s\ncom_frameTime: %d", com_version->string, com_frameTime);
 	FCGX_FPrintF(request.out, "Content-Type: application/json\r\n\r\n{\n  \"conclusion\": \"It works!\",\n  \"version\": \"%s\",\n  \"frameTime\": %d\n}", com_version->string, com_frameTime);

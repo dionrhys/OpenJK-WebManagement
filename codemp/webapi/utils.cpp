@@ -52,16 +52,14 @@ void ParsePathInfo(const char* pathInfo, std::vector<std::string>& path)
 		if (*pSeek == '\0' || *pSeek == '/') {
 			// reached end of segment
 			ptrdiff_t segmentLen = pSeek - pStart;
-			// if (segmentLen == 0) {
-			// // discard this empty segment
-			// pSeek++;
-			// pStart = pSeek;
-			// continue;
-			// }
 
-			// add segment to path vector
-			std::string segment = std::string(pStart, segmentLen);
-			path.push_back(segment);
+			// discard empty segments
+			if (segmentLen > 0)
+			{
+				// add segment to path vector
+				std::string segment = std::string(pStart, segmentLen);
+				path.push_back(segment);
+			}
 
 			if (*pSeek == '\0') {
 				// reached end of entire path
@@ -213,4 +211,33 @@ void ParseQueryString(const char* queryString, std::map<std::string, std::string
 
 		pSeek++;
 	}
+}
+
+//
+// C++ standard library doesn't have a robust method to parse numbers...
+// http://stackoverflow.com/a/6154614
+//
+bool StringToInt(const std::string& input, int& output)
+{
+	const char *str = input.c_str();
+	char *end = NULL;
+
+	long value = strtol(str, &end, 10);
+
+	if (*str == '\0' || *end != '\0')
+	{
+		return false;
+	}
+	if ((value == LONG_MAX && errno == ERANGE) || value > INT_MAX)
+	{
+		return false;
+	}
+	if ((value == LONG_MIN && errno == ERANGE) || value < INT_MIN)
+	{
+		return false;
+	}
+
+	output = static_cast<int>(value);
+
+	return true;
 }
