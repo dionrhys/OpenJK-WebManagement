@@ -1,7 +1,10 @@
 #include "webapi.h"
 #include "utils.h"
 #include "WebAPIRequest.h"
+#include "ConsoleController.h"
+#include "LevelsController.h"
 #include "PlayersController.h"
+#include "ServerController.h"
 
 #include "qcommon/qcommon.h"
 #include "libfcgi/fcgiapp.h"
@@ -20,6 +23,9 @@ static bool webapiInitialized = false;
 
 // The shared FastCGI request object (access must be synchronized)
 static FCGX_Request webapiRequest;
+
+// A string to hold all console output, for the /console resource
+static std::string webapiConsoleBuffer;
 
 static DWORD WINAPI _WebAPI_AcceptingThreadProc(LPVOID);
 static void WebAPI_AcceptingThread();
@@ -190,7 +196,7 @@ static void WebAPI_HandleRequest(FCGX_Request& request)
 		return;
 	}
 
-	Com_Printf("Web API request %s:%s : %s %s %s\n", remoteAddr, remotePort, requestMethod, pathInfo, queryString);
+	Com_DPrintf("Web API request %s:%s : %s %s %s\n", remoteAddr, remotePort, requestMethod, pathInfo, queryString);
 
 	// Parse/validate path segments from PATH_INFO
 	std::vector<std::string> path;
@@ -220,15 +226,53 @@ static void WebAPI_HandleRequest(FCGX_Request& request)
 
 	// TODO: Authentication/Authorization
 
-	// TODO: Locate appropriate resource controller to handle the request
+	// Locate appropriate resource controller to handle the request
 	WebAPIRequest newRequest = WebAPIRequest(request, method, path, query);
-	if (path.size() >= 1 && path[0] == "players")
+	if (path.size() >= 1)
 	{
-		PlayersController controller = PlayersController(newRequest);
-		controller.Execute();
-		return;
+		if (path[0] == "console")
+		{
+			ConsoleController controller(newRequest);
+			controller.Execute();
+			return;
+		}
+		else if (path[0] == "levels")
+		{
+			LevelsController controller(newRequest);
+			controller.Execute();
+			return;
+		}
+		else if (path[0] == "players")
+		{
+			PlayersController controller(newRequest);
+			controller.Execute();
+			return;
+		}
+		else if (path[0] == "server")
+		{
+			ServerController controller(newRequest);
+			controller.Execute();
+			return;
+		}
 	}
 
-	//FCGX_FPrintF(request.out, "Content-Type: text/plain\r\n\r\nIt works!\ncom_version: %s\ncom_frameTime: %d", com_version->string, com_frameTime);
-	FCGX_FPrintF(request.out, "Content-Type: application/json\r\n\r\n{\n  \"conclusion\": \"It works!\",\n  \"version\": \"%s\",\n  \"frameTime\": %d\n}", com_version->string, com_frameTime);
+	newRequest.NotFound();
+}
+
+///
+/// Append the message to the WebAPI's copy of the console buffer
+///
+void WebAPI_Print(const char* message)
+{
+	//if (!webapiInitialized)
+	//{
+	//	return;
+	//}
+
+	webapiConsoleBuffer += message;
+}
+
+const std::string& WebAPI_GetConsoleBuffer()
+{
+	return webapiConsoleBuffer;
 }

@@ -344,7 +344,10 @@ if(BuildMPEngine OR BuildMPDed)
 	set(MPEngineAndDedFiles ${MPEngineAndDedFiles} ${MPEngineAndDedMinizipFiles})
 
 	set(MPEngineAndDedWebapiFiles
+		"${MPDir}/webapi/ConsoleController.h"
+		"${MPDir}/webapi/LevelsController.h"
 		"${MPDir}/webapi/PlayersController.h"
+		"${MPDir}/webapi/ServerController.h"
 		"${MPDir}/webapi/utils.cpp"
 		"${MPDir}/webapi/utils.h"
 		"${MPDir}/webapi/webapi.cpp"

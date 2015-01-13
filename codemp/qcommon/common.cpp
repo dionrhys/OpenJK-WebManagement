@@ -162,6 +162,7 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 		}
 	}
 
+	WebAPI_Print(msg);
 
 #if defined(_WIN32) && defined(_DEBUG)
 	if ( *msg )

@@ -2,6 +2,7 @@
 #define _WEBAPI_PLAYERSCONTROLLER_H
 
 #include "WebAPIRequest.h"
+#include "utils.h"
 #include "libfcgi/fcgiapp.h"
 #include "server/server.h"
 #include "json/json.h"
