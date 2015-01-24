@@ -38,11 +38,26 @@ public:
 private:
 	WebAPIRequest& mRequest;
 
+	static Json::Value levelArray;
+
+	static void AppendLevel(const char *s)
+	{
+		Json::Value lvl = Json::Value(Json::objectValue);
+		lvl["name"] = s;
+		levelArray.append(lvl);
+	}
+
 	// GET /levels
 	void GetAll()
 	{
 		// Get a list of all the levels (.bsp files)
+		levelArray = Json::Value(Json::arrayValue);
+		FS_FilenameCompletion("maps", "bsp", qtrue, AppendLevel, qfalse);
+
+		mRequest.OK(levelArray);
 	}
 };
+
+Json::Value LevelsController::levelArray;
 
 #endif //_WEBAPI_LEVELSCONTROLLER_H

@@ -269,7 +269,12 @@ void WebAPI_Print(const char* message)
 	//	return;
 	//}
 
-	webapiConsoleBuffer += message;
+	char msg[4096] = { 0 };
+	Q_strncpyz(msg, message, sizeof(msg));
+	Q_StripColor(msg);
+
+	// TODO: Maybe only keep the last X amount of lines so clients won't end up grabbing many kilobytes of text at a time
+	webapiConsoleBuffer += msg;
 }
 
 const std::string& WebAPI_GetConsoleBuffer()

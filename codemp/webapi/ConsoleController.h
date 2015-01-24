@@ -60,7 +60,36 @@ private:
 	// POST /console
 	void Post()
 	{
-		// Execute command string
+		Json::Value input;
+		char data[1024];
+		int len = FCGX_GetStr(data, sizeof(data), mRequest.fcgxRequest.in);
+		if (len >= sizeof(data))
+		{
+			mRequest.BadRequest("Request content is too large.");
+			return;
+		}
+
+		Json::Reader reader = Json::Reader(Json::Features::strictMode());
+		bool success = reader.parse(data, data + len, input);
+		if (!success)
+		{
+			mRequest.BadRequest("Unable to parse the request content.");
+			return;
+		}
+
+		const Json::Value& value = input["command"];
+		if (!value.isString())
+		{
+			mRequest.BadRequest("You must provide a string 'command' field in the request content.");
+			return;
+		}
+		const char* command = value.asCString();
+
+		// No filtering for malicious command buffer injection is done because the whole point
+		// of this method is to inject text into the command buffer
+		Cbuf_AddText(va("%s\n", command));
+
+		mRequest.NoContent();
 	}
 };
 
