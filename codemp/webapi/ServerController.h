@@ -107,18 +107,33 @@ private:
 	// GET /server
 	void Get()
 	{
+		// Calculate number of players
+		int numPlayers = 0;
+		if (com_sv_running->integer) {
+			for (int i = 0; i < sv_maxclients->integer; i++) {
+				if (svs.clients[i].state >= CS_CONNECTED) {
+					numPlayers++;
+				}
+			}
+		}
+
 		Json::Value server = Json::Value(Json::objectValue);
 		server["state"] = com_sv_running->integer ? "online" : "offline";
 		server["name"] = sv_hostname->string;
 		server["maxPlayers"] = sv_maxclients->integer;
-		server["numPlayers"] = 9999; // TODO
-		server["mapName"] = sv_mapname->string;
+		server["numPlayers"] = numPlayers;
 		server["gameMode"] = GetGametypeString(sv_gametype->integer);
 		server["uptime"] = 9999; // TODO
 		server["address"] = va("%s:%i", Cvar_VariableString("net_ip"), Cvar_VariableIntegerValue("net_port"));
 		server["game"] = "Star Wars Jedi Knight: Jedi Academy";
 		server["version"] = JK_VERSION;
 		server["platform"] = PLATFORM_STRING;
+
+		// Fields that only exist when the server is actually running
+		if (com_sv_running->integer) {
+			server["mapName"] = sv_mapname->string;
+		}
+
 		mRequest.OK(server);
 	}
 

@@ -232,7 +232,10 @@ private:
 		out = Json::Value(Json::objectValue);
 		out["id"] = std::to_string(clientNum);
 		out["name"] = cl->name;
-		out["playingTime"] = (svs.time - cl->lastConnectTime) / 1000.0f;
+		if (cl->netchan.remoteAddress.type != NA_BOT) {
+			// Bots don't keep track of their connection time :/
+			out["playingTime"] = (svs.time - cl->lastConnectTime) / 1000.0f;
+		}
 		out["isBot"] = (cl->netchan.remoteAddress.type == NA_BOT);
 		out["isLocal"] = (cl->netchan.remoteAddress.type == NA_LOOPBACK);
 		out["score"] = ps->persistant[PERS_SCORE];
