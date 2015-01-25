@@ -235,6 +235,9 @@ private:
 		if (cl->netchan.remoteAddress.type != NA_BOT) {
 			// Bots don't keep track of their connection time :/
 			out["playingTime"] = (svs.time - cl->lastConnectTime) / 1000.0f;
+			if (cl->state != CS_CONNECTED && cl->state != CS_ZOMBIE) {
+				out["ping"] = cl->ping;
+			}
 		}
 		out["isBot"] = (cl->netchan.remoteAddress.type == NA_BOT);
 		out["isLocal"] = (cl->netchan.remoteAddress.type == NA_LOOPBACK);
