@@ -94,6 +94,45 @@ public:
 						return;
 					}
 				}
+				else if (mRequest.path[1] == "broadcast")
+				{
+					if (mRequest.method == "POST")
+					{
+						PostBroadcast();
+						return;
+					}
+					else
+					{
+						mRequest.MethodNotAllowed();
+						return;
+					}
+				}
+				else if (mRequest.path[1] == "level")
+				{
+					if (mRequest.method == "POST")
+					{
+						PostLevel();
+						return;
+					}
+					else
+					{
+						mRequest.MethodNotAllowed();
+						return;
+					}
+				}
+				else if (mRequest.path[1] == "gamemode")
+				{
+					if (mRequest.method == "POST")
+					{
+						PostGamemode();
+						return;
+					}
+					else
+					{
+						mRequest.MethodNotAllowed();
+						return;
+					}
+				}
 			}
 		}
 
@@ -123,7 +162,7 @@ private:
 		server["maxPlayers"] = sv_maxclients->integer;
 		server["numPlayers"] = numPlayers;
 		server["gameMode"] = GetGametypeString(sv_gametype->integer);
-		server["uptime"] = 9999; // TODO
+		server["uptime"] = svs.time / 1000.0f;
 		server["address"] = va("%s:%i", Cvar_VariableString("net_ip"), Cvar_VariableIntegerValue("net_port"));
 		server["game"] = "Star Wars Jedi Knight: Jedi Academy";
 		server["version"] = JK_VERSION;
@@ -160,6 +199,131 @@ private:
 		{
 			Cbuf_AddText("killserver\n");
 		}
+
+		mRequest.NoContent();
+	}
+
+	// POST /server/broadcast
+	void PostBroadcast()
+	{
+		if (!com_sv_running->integer) {
+			mRequest.NotFound("Server is not running.");
+			return;
+		}
+
+		Json::Value input;
+		char data[1024];
+		int len = FCGX_GetStr(data, sizeof(data), mRequest.fcgxRequest.in);
+		if (len >= sizeof(data))
+		{
+			mRequest.BadRequest("Request content is too large.");
+			return;
+		}
+
+		Json::Reader reader = Json::Reader(Json::Features::strictMode());
+		bool success = reader.parse(data, data + len, input);
+		if (!success)
+		{
+			mRequest.BadRequest("Unable to parse the request content.");
+			return;
+		}
+
+		const Json::Value& value = input["message"];
+		if (!value.isString())
+		{
+			mRequest.BadRequest("You must provide a string 'message' field in the request content.");
+			return;
+		}
+		const char* message = value.asCString();
+
+		// Ensure potentially-dangerous characters can't be injected into the command buffer
+		if (strchr(message, '\n') || strchr(message, '\r') || strchr(message, ';') || strchr(message, '\"') || strchr(message, '/') || strchr(message, '*'))
+		{
+			mRequest.BadRequest("Invalid characters in the 'message' field.");
+			return;
+		}
+
+		Cbuf_AddText(va("svsay \"%s\"\n", message));
+
+		mRequest.NoContent();
+	}
+
+	// POST /server/level
+	void PostLevel()
+	{
+		Json::Value input;
+		char data[1024];
+		int len = FCGX_GetStr(data, sizeof(data), mRequest.fcgxRequest.in);
+		if (len >= sizeof(data))
+		{
+			mRequest.BadRequest("Request content is too large.");
+			return;
+		}
+
+		Json::Reader reader = Json::Reader(Json::Features::strictMode());
+		bool success = reader.parse(data, data + len, input);
+		if (!success)
+		{
+			mRequest.BadRequest("Unable to parse the request content.");
+			return;
+		}
+
+		const Json::Value& value = input["level"];
+		if (!value.isString())
+		{
+			mRequest.BadRequest("You must provide a string 'level' field in the request content.");
+			return;
+		}
+		const char* level = value.asCString();
+
+		// Ensure potentially-dangerous characters can't be injected into the command buffer
+		if (strchr(level, '\n') || strchr(level, '\r') || strchr(level, ';') || strchr(level, '\"') || strchr(level, '*') || strchr(level, ':'))
+		{
+			mRequest.BadRequest("Invalid characters in the 'level' field.");
+			return;
+		}
+
+		Cbuf_AddText(va("map \"%s\"\n", level));
+
+		mRequest.NoContent();
+	}
+
+	// POST /server/gamemode
+	void PostGamemode()
+	{
+		Json::Value input;
+		char data[1024];
+		int len = FCGX_GetStr(data, sizeof(data), mRequest.fcgxRequest.in);
+		if (len >= sizeof(data))
+		{
+			mRequest.BadRequest("Request content is too large.");
+			return;
+		}
+
+		Json::Reader reader = Json::Reader(Json::Features::strictMode());
+		bool success = reader.parse(data, data + len, input);
+		if (!success)
+		{
+			mRequest.BadRequest("Unable to parse the request content.");
+			return;
+		}
+
+		const Json::Value& value = input["gameMode"];
+		if (!value.isString())
+		{
+			mRequest.BadRequest("You must provide a string 'gameMode' field in the request content.");
+			return;
+		}
+		int gametype = 0;
+
+		// Ensure gametype is valid
+		if (!StringToInt(value.asString(), gametype) || gametype < 0 || gametype > GT_MAX_GAME_TYPE)
+		{
+			mRequest.NotFound("Invalid game mode chosen.");
+			return;
+		}
+
+		Cbuf_AddText(va("set g_gametype %d\nmap %s\n", gametype, Cvar_VariableString("mapname")));
 
 		mRequest.NoContent();
 	}
